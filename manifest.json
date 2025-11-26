@@ -1,0 +1,16 @@
+{
+  "name": "Genshin Calculator",
+  "short_name": "GenshinCalc",
+  "start_url": "/Genshin-calculator-/",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#4b6fff",
+  "description": "Genshin Impact Pull & Pricing Calculator",
+  "icons": [
+    {
+      "src": "https://i.postimg.cc/vmbwPnJW/Genshin_Impact.webp",
+      "sizes": "512x512",
+      "type": "image/webp"
+    }
+  ]
+}
