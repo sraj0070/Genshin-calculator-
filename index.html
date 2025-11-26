@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Genshin Pull & Pricing Calculator</title>
+<style>
+  body { font-family: Arial, sans-serif; background:#111; color:white; padding:15px; margin:0; }
+  h1 { text-align:center; font-size:1.5rem; margin-bottom:15px; }
+  .card { background:#1a1a1a; padding:15px; border-radius:12px; margin-bottom:15px; }
+  label { font-weight:bold; display:block; margin-top:10px; font-size:1rem; }
+  input, select, button { padding:10px; border-radius:10px; border:none; margin-top:5px; width:100%; font-size:1rem; box-sizing:border-box; }
+  button { background:#4b6fff; color:white; cursor:pointer; margin-top:10px; }
+  table { width:100%; border-collapse:collapse; margin-top:10px; font-size:0.95rem; table-layout:auto; }
+  th, td { padding:8px; border-bottom:1px solid #444; text-align:center; vertical-align:middle; }
+  .logo-row { display:flex; gap:15px; margin-bottom:15px; justify-content:center; align-items:center; flex-wrap:wrap; }
+  .logo-row img { height:50px; max-width:80%; object-fit:contain; }
+  .muted{color:#bbb;font-size:0.85rem;}
+  .small-icon{height:24px; vertical-align:middle; margin-right:6px;} /* Pulls icon */
+  .crystal-icon{height:36px; vertical-align:middle; margin-right:3px;} /* Crystal icon bigger */
+  .green-amount{color:#00ff00; font-weight:bold;} /* Green total cost */
+  .breakdown {margin-top:10px; font-size:0.9rem; color:#ccc; max-height:0; overflow:hidden; transition:max-height 0.3s ease; padding-left:15px;}
+  .breakdown.open{max-height:500px;} /* expand when open */
+  .breakdown li{margin-bottom:3px;}
+  .breakdown-toggle{cursor:pointer; color:#4b6fff; font-size:0.95rem; margin-top:5px; display:inline-block;}
+  @media(max-width:400px){
+    table, th, td { font-size:0.85rem; }
+    .small-icon{height:20px; margin-right:4px;}
+    .crystal-icon{height:28px; margin-right:2px;}
+  }
+</style>
+</head>
+<body>
+
+<h1>Genshin Pull & Pricing Calculator</h1>
+
+<div class="logo-row">
+  <img id="headerLogo" src="https://i.postimg.cc/vmbwPnJW/Genshin_Impact.webp" alt="Genshin Logo">
+</div>
+
+<div class="card">
+  <label>Choose Pack Set:</label>
+  <select id="packSet">
+    <option value="recharge">RechargeArena packs</option>
+    <option value="official">Official India packs</option>
+  </select>
+</div>
+
+<div class="card">
+  <h2>Calculate Cost for Pulls</h2>
+  <label>Select Top-Up Pack:</label>
+  <select id="topUpPack"></select>
+
+  <label>Enter Number of Pulls:</label>
+  <input id="pullCount" type="number" placeholder="e.g. 10" />
+
+  <button id="calcPullBtn">Calculate Cost</button>
+  <p id="pullCostResult"></p>
+</div>
+
+<div class="card">
+  <h2>Enter ₹ Amount → Get Pulls</h2>
+  <label>Pack Set:</label>
+  <select id="packSet2">
+    <option value="recharge">RechargeArena packs</option>
+    <option value="official">Official India packs</option>
+  </select>
+
+  <label>Select Top-Up Pack (optional):</label>
+  <select id="topUpPack3"></select>
+
+  <label>Enter ₹ Amount:</label>
+  <input id="inrInput" placeholder="e.g., 1,00,000" />
+  <p id="pullResult"></p>
+  <span class="breakdown-toggle" id="toggleBreakdown">Show pack breakdown</span>
+  <ul id="breakdownList" class="breakdown"></ul>
+
+  <h3>Pack Comparison</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Pack</th>
+        <th>₹</th>
+        <th>Crystals</th>
+        <th>Pulls</th>
+      </tr>
+    </thead>
+    <tbody id="miniCompare"></tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Comparison Table</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Source</th>
+        <th>₹ Cost</th>
+        <th>Crystals</th>
+        <th>Cost / Crystal</th>
+        <th>Cost / Pull (160)</th>
+      </tr>
+    </thead>
+    <tbody id="compareBody"></tbody>
+  </table>
+</div>
+
+<script>
+const rechargeArenaPacks = [
+  { price:70, crystals:60 },
+  { price:370, crystals:330 },
+  { price:1150, crystals:1090 },
+  { price:2500, crystals:2240 },
+  { price:3700, crystals:3880 },
+  { price:7500, crystals:8080 }
+];
+
+const officialPacks = [
+  { price: 90, crystals: 60 },
+  { price: 499, crystals: 300 },
+  { price: 1499, crystals: 980 },
+  { price: 2999, crystals: 1980 },
+  { price: 4999, crystals: 3280 },
+  { price: 9900, crystals: 6480 }
+];
+
+// Updated image links
+const crystalIcon = '<img class="crystal-icon" src="https://i.postimg.cc/52hrKngJ/Crystals.png" alt="Crystal">';
+const pullsIcon   = '<img class="small-icon" src="https://i.postimg.cc/LXGtVbRz/Pulls.png" alt="Pulls">';
+
+function fmt(n){ return Number(n).toLocaleString('en-IN'); }
+
+function updatePackList(){
+  const type = document.getElementById('packSet').value;
+  const list = type==='recharge'?rechargeArenaPacks:officialPacks;
+  const select = document.getElementById('topUpPack');
+  select.innerHTML='';
+  list.forEach(p=>{
+    const opt = document.createElement('option');
+    opt.value=p.price;
+    opt.dataset.crystals=p.crystals;
+    opt.textContent=`₹${fmt(p.price)} — ${fmt(p.crystals)} Crystals`;
+    select.appendChild(opt);
+  });
+}
+
+function updatePackList3(){
+  const type = document.getElementById('packSet2').value;
+  const list = type==='recharge'?rechargeArenaPacks:officialPacks;
+  const select = document.getElementById('topUpPack3');
+  select.innerHTML='';
+  list.forEach(p=>{
+    const opt = document.createElement('option');
+    opt.value=p.price;
+    opt.dataset.crystals=p.crystals;
+    opt.textContent=`₹${fmt(p.price)} — ${fmt(p.crystals)} Crystals`;
+    select.appendChild(opt);
+  });
+  renderMiniCompare(list);
+}
+
+function renderMiniCompare(list){
+  const tbody=document.getElementById('miniCompare');
+  tbody.innerHTML='';
+  list.forEach(p=>{
+    const pulls=Math.floor(p.crystals/160);
+    tbody.innerHTML+=`<tr>
+      <td>₹${fmt(p.price)} pack</td>
+      <td>₹${fmt(p.price)}</td>
+      <td>${crystalIcon}${fmt(p.crystals)}</td>
+      <td>${pullsIcon}${fmt(pulls)}</td>
+    </tr>`;
+  });
+}
+
+function renderComparison(){
+  const body=document.getElementById('compareBody');
+  body.innerHTML='';
+  const data=[
+    ...rechargeArenaPacks.map(p=>({source:'RechargeArena',...p})),
+    ...officialPacks.map(p=>({source:'Official',...p}))
+  ];
+  data.forEach(d=>{
+    const cpc=d.price/d.crystals;
+    const cpp=cpc*160;
+    body.innerHTML+=`<tr>
+      <td>${d.source}</td>
+      <td>₹${fmt(d.price)}</td>
+      <td>${crystalIcon}${fmt(d.crystals)}</td>
+      <td>₹${cpc.toFixed(2)}</td>
+      <td>${pullsIcon}₹${cpp.toFixed(2)}</td>
+    </tr>`;
+  });
+}
+
+function calculateCostForPulls(){
+  const pulls=Number(document.getElementById('pullCount').value);
+  if(!pulls){document.getElementById('pullCostResult').innerHTML='<span class="muted">Enter valid pull count.</span>'; return;}
+  const selected=document.getElementById('topUpPack').selectedOptions[0];
+  const price=Number(selected.value);
+  const crystals=Number(selected.dataset.crystals);
+  const neededCrystals=pulls*160;
+  const costPerCrystal=price/crystals;
+  const totalCost=neededCrystals*costPerCrystal;
+  document.getElementById('pullCostResult').innerHTML=`Total Cost for ${pullsIcon} <b>${fmt(pulls)}</b> pulls = <span class="green-amount">₹${fmt(totalCost.toFixed(2))}</span>`;
+}
+
+function calculateFromINR(){
+  const raw=document.getElementById('inrInput').value||'';
+  const amount=parseInt(raw.replace(/[^0-9]/g,''),10)||0;
+  const breakdownEl = document.getElementById('breakdownList');
+  if(!amount){ document.getElementById('pullResult').innerHTML=''; renderMiniCompare([]); breakdownEl.innerHTML=''; return; }
+
+  const packType=document.getElementById('packSet2').value;
+  const packList=packType==='recharge'?rechargeArenaPacks:officialPacks;
+
+  let crystals=0, remaining=amount;
+  const breakdown = [];
+
+  for(let i=packList.length-1;i>=0;i--){
+    const p=packList[i];
+    const count=Math.floor(remaining/p.price);
+    if(count>0){
+      crystals+=count*p.crystals;
+      remaining-=count*p.price;
+      breakdown.push({price:p.price,count:count,crystals:p.crystals});
+    }
+  }
+  if(crystals===0){ const best=packList[0]; crystals=(amount/best.price)*best.crystals; breakdown.push({price:best.price,count:(amount/best.price).toFixed(2),crystals:best.crystals}); }
+
+  const pulls=Math.floor(crystals/160);
+  document.getElementById('pullResult').innerHTML=`You can get ${crystalIcon} <b>${fmt(Math.floor(crystals))}</b> → ${pullsIcon} <b>${fmt(pulls)}</b>`;
+
+  // Render breakdown list
+  breakdownEl.innerHTML='';
+  breakdown.forEach(item=>{
+    breakdownEl.innerHTML+=`<li>Buy ${item.count} × ₹${fmt(item.price)} pack → ${crystalIcon}${fmt(item.count*item.crystals)} crystals</li>`;
+  });
+
+  renderMiniCompare(packList);
+}
+
+window.addEventListener('DOMContentLoaded', ()=>{
+  renderComparison();
+  updatePackList();
+  updatePackList3();
+
+  document.getElementById('packSet').addEventListener('change',updatePackList);
+  document.getElementById('packSet2').addEventListener('change',updatePackList3);
+  document.getElementById('calcPullBtn').addEventListener('click',calculateCostForPulls);
+  document.getElementById('pullCount').addEventListener('keydown',(e)=>{if(e.key==='Enter') calculateCostForPulls();});
+
+  const inr=document.getElementById('inrInput');
+  inr.addEventListener('input',()=>{inr.value=Number(inr.value.replace(/[^0-9]/g,'')||0).toLocaleString('en-IN'); calculateFromINR();});
+  inr.addEventListener('keydown',(e)=>{if(e.key==='Enter') calculateFromINR();});
+
+  // Toggle breakdown
+  const toggleBtn = document.getElementById('toggleBreakdown');
+  toggleBtn.addEventListener('click',()=>{
+    const bd = document.getElementById('breakdownList');
+    bd.classList.toggle('open');
+    toggleBtn.textContent = bd.classList.contains('open') ? 'Hide pack breakdown' : 'Show pack breakdown';
+  });
+});
+</script>
+
+</body>
+</html>
